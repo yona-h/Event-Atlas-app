@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Event Atlas Detail</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell detail-shell">
+      <header class="hero">
+        <a class="back-link" href="./index.html">← Zurueck zum Feed</a>
+        <p class="badge">Event Atlas</p>
+        <h1 id="detailTitle">Event laden...</h1>
+        <p id="detailSubtitle" class="subtitle"></p>
+      </header>
+
+      <section class="panel" id="detailStatusPanel">
+        <p id="detailStatus" class="muted">Lade Event-Details...</p>
+      </section>
+
+      <section class="panel" id="detailMetaPanel" hidden>
+        <h2>Uebersicht</h2>
+        <div class="detail-meta-grid">
+          <div><strong>Ort:</strong> <span id="metaVenue">-</span></div>
+          <div><strong>Veranstalter:</strong> <span id="metaOrganizer">-</span></div>
+          <div><strong>Preis:</strong> <span id="metaPrice">-</span></div>
+          <div><strong>Status:</strong> <span id="metaStatus">-</span></div>
+        </div>
+        <p id="detailDescription" class="desc"></p>
+        <div id="detailCategories" class="chips"></div>
+        <div id="detailLinks" class="links"></div>
+      </section>
+
+      <section class="panel" id="detailOccurrencesPanel" hidden>
+        <h2>Termine</h2>
+        <div id="occurrenceList" class="occurrence-list"></div>
+      </section>
+    </main>
+
+    <script src="./detail.js" type="module"></script>
+  </body>
+</html>
