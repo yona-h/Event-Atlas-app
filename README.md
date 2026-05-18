@@ -2,23 +2,17 @@
 
 ## Start
 
-1. In den Ordner wechseln:
-   ```bash
-   cd /Users/yona/Desktop/EventAtlas/prototype
-   ```
-2. Lokalen Webserver starten:
+Lokalen Webserver starten:
    ```bash
    python3 -m http.server 4173
    ```
-3. Im Browser oeffnen:
+Im Browser oeffnen:
    `http://localhost:4173`
 
-## In der UI eintragen
+## gh pushen
+git remote add public https://github.com/yona-h/EventAtlas-prototype.git
 
-- `Supabase URL`: Projekt-URL (z. B. `https://<ref>.supabase.co`)
-- `Publishable Key`: `sb_publishable_...`
-
-Dann auf `Speichern` und `Feed laden` klicken.
+git subtree push --prefix prototype public main
 
 ## Detailseite
 
