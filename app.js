@@ -1,13 +1,12 @@
-const STORAGE_KEY = "event_atlas_proto_config";
+// Public credentials (RLS-protected, safe to expose)
+const SUPABASE_URL = "https://dsozrejgzoluitgpfdxw.supabase.co";
+const SUPABASE_KEY = "sb_publishable_PQT-st0gD0n4d5cMZnHYxw_mJmjYPJD";
 
 const el = {
-  supabaseUrl: document.querySelector("#supabaseUrl"),
-  supabaseKey: document.querySelector("#supabaseKey"),
-  saveConfigBtn: document.querySelector("#saveConfigBtn"),
-  configStatus: document.querySelector("#configStatus"),
+  startDateFilter: document.querySelector("#startDateFilter"),
+  endDateFilter: document.querySelector("#endDateFilter"),
   cityFilter: document.querySelector("#cityFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
-  daysFilter: document.querySelector("#daysFilter"),
   nextOnlyFilter: document.querySelector("#nextOnlyFilter"),
   loadBtn: document.querySelector("#loadBtn"),
   resultInfo: document.querySelector("#resultInfo"),
@@ -15,35 +14,13 @@ const el = {
   cardTemplate: document.querySelector("#cardTemplate")
 };
 
-function loadConfig() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return;
+function initDateFilters() {
+  const today = new Date();
+  const in30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-  try {
-    const config = JSON.parse(raw);
-    el.supabaseUrl.value = config.supabaseUrl || "";
-    el.supabaseKey.value = config.supabaseKey || "";
-    el.configStatus.textContent = "Konfiguration geladen.";
-  } catch {
-    el.configStatus.textContent = "Konfiguration konnte nicht gelesen werden.";
-  }
-}
-
-function saveConfig() {
-  const config = {
-    supabaseUrl: el.supabaseUrl.value.trim().replace(/\/$/, ""),
-    supabaseKey: el.supabaseKey.value.trim()
-  };
-
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-  el.configStatus.textContent = "Gespeichert.";
-}
-
-function getConfig() {
-  return {
-    supabaseUrl: el.supabaseUrl.value.trim().replace(/\/$/, ""),
-    supabaseKey: el.supabaseKey.value.trim()
-  };
+  const formatDate = (d) => d.toISOString().split('T')[0];
+  el.startDateFilter.value = formatDate(today);
+  el.endDateFilter.value = formatDate(in30Days);
 }
 
 function formatDate(iso) {
@@ -53,7 +30,8 @@ function formatDate(iso) {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
+    timeZone: "UTC"
   }).format(d);
 }
 
@@ -171,22 +149,21 @@ function keepNextOccurrencePerEvent(items) {
 }
 
 async function loadFeed() {
-  const { supabaseUrl, supabaseKey } = getConfig();
-
-  if (!supabaseUrl || !supabaseKey) {
-    el.resultInfo.textContent = "Bitte zuerst URL und Publishable Key setzen.";
-    return;
-  }
-
   el.resultInfo.textContent = "Lade...";
 
-  const days = Number(el.daysFilter.value || 14);
-  const endDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+  const startDate = el.startDateFilter.value;
+  const endDate = el.endDateFilter.value;
+
+  if (!startDate || !endDate) {
+    el.resultInfo.textContent = "Bitte Start- und Enddatum setzen.";
+    return;
+  }
 
   const params = new URLSearchParams();
   params.set("select", "*");
   params.set("order", "starts_at.asc");
-  params.set("starts_at", `lte.${endDate}`);
+  params.append("starts_at", `gte.${startDate}`);
+  params.append("starts_at", `lte.${endDate}`);
   params.set("limit", "200");
 
   const city = el.cityFilter.value.trim();
@@ -195,13 +172,13 @@ async function loadFeed() {
   const category = el.categoryFilter.value;
   if (category) params.set("category_slugs", `cs.{${category}}`);
 
-  const url = `${supabaseUrl}/rest/v1/upcoming_event_cards?${params.toString()}`;
+  const url = `${SUPABASE_URL}/rest/v1/upcoming_event_cards?${params.toString()}`;
 
   try {
     const res = await fetch(url, {
       headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`
       }
     });
 
@@ -217,14 +194,15 @@ async function loadFeed() {
     renderCards(filtered);
     el.resultInfo.textContent = `${filtered.length} Ergebnisse${el.nextOnlyFilter.checked ? " (naechster Termin je Event)" : ""}`;
   } catch (err) {
-    el.resultInfo.textContent = `Fehler beim Laden (${err.message}). Pruefe URL/Key und ob die View freigegeben ist.`;
+    el.resultInfo.textContent = `Fehler beim Laden: ${err.message}`;
     el.cards.innerHTML = "";
   }
 }
 
-el.saveConfigBtn.addEventListener("click", saveConfig);
 el.loadBtn.addEventListener("click", loadFeed);
 el.categoryFilter.addEventListener("change", loadFeed);
 el.nextOnlyFilter.addEventListener("change", loadFeed);
+el.startDateFilter.addEventListener("change", loadFeed);
+el.endDateFilter.addEventListener("change", loadFeed);
 
-loadConfig();
+initDateFilters();

@@ -17,44 +17,35 @@
         <p class="subtitle">Live-Feed aus <code>public.upcoming_event_cards</code> mit Filtern auf Stadt, Kategorie und Zeitraum.</p>
       </header>
 
-      <section class="panel credentials">
-        <h2>Verbindung</h2>
-        <div class="grid two">
-          <label>
-            <span>Supabase URL</span>
-            <input id="supabaseUrl" placeholder="https://YOUR-PROJECT.supabase.co" />
-          </label>
-          <label>
-            <span>Publishable Key</span>
-            <input id="supabaseKey" placeholder="sb_publishable_..." />
-          </label>
-        </div>
-        <button id="saveConfigBtn" class="btn">Speichern</button>
-        <p id="configStatus" class="muted"></p>
-      </section>
 
       <section class="panel filters">
         <h2>Filter</h2>
         <div class="grid three">
           <label>
+            <span>Von</span>
+            <input id="startDateFilter" type="date" />
+          </label>
+          <label>
+            <span>Bis</span>
+            <input id="endDateFilter" type="date" />
+          </label>
+          <label>
             <span>Stadt</span>
             <input id="cityFilter" placeholder="z. B. Muenster" />
           </label>
+        </div>
+        <div class="grid two">
           <label>
             <span>Kategorie</span>
             <select id="categoryFilter">
               <option value="">Alle</option>
             </select>
           </label>
-          <label>
-            <span>Zeitraum (Tage)</span>
-            <input id="daysFilter" type="number" min="1" max="90" value="14" />
+          <label class="checkbox-row">
+            <input id="nextOnlyFilter" type="checkbox" />
+            <span>Nur naechsten Termin je Event</span>
           </label>
         </div>
-        <label class="checkbox-row">
-          <input id="nextOnlyFilter" type="checkbox" />
-          <span>Nur naechsten Termin je Event anzeigen</span>
-        </label>
         <div class="actions">
           <button id="loadBtn" class="btn">Feed laden</button>
           <p id="resultInfo" class="muted"></p>

@@ -1,4 +1,6 @@
-const STORAGE_KEY = "event_atlas_proto_config";
+// Public credentials (RLS-protected, safe to expose)
+const SUPABASE_URL = "https://dsozrejgzoluitgpfdxw.supabase.co";
+const SUPABASE_KEY = "sb_publishable_PQT-st0gD0n4d5cMZnHYxw_mJmjYPJD";
 
 const el = {
   detailTitle: document.querySelector("#detailTitle"),
@@ -17,19 +19,6 @@ const el = {
   occurrenceList: document.querySelector("#occurrenceList")
 };
 
-function getConfig() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const config = JSON.parse(raw);
-    return {
-      supabaseUrl: (config.supabaseUrl || "").replace(/\/$/, ""),
-      supabaseKey: config.supabaseKey || ""
-    };
-  } catch {
-    return null;
-  }
-}
 
 function formatDate(iso) {
   const d = new Date(iso);
@@ -39,7 +28,8 @@ function formatDate(iso) {
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
+    timeZone: "UTC"
   }).format(d);
 }
 
@@ -140,25 +130,19 @@ async function loadDetail() {
     return;
   }
 
-  const cfg = getConfig();
-  if (!cfg || !cfg.supabaseUrl || !cfg.supabaseKey) {
-    el.detailStatus.textContent = "Keine Konfiguration gefunden. Bitte zuerst im Feed URL und Key speichern.";
-    return;
-  }
-
   try {
     const [eventRows, occurrences, eventCats] = await Promise.all([
-      restFetch(cfg.supabaseUrl, cfg.supabaseKey, "events", {
+      restFetch(SUPABASE_URL, SUPABASE_KEY, "events", {
         select: "id,title,subtitle,description,event_url,ticket_url,is_free,min_price_cents,max_price_cents,currency_code,status,organizer_id,venue_id",
         id: `eq.${eventId}`,
         limit: "1"
       }),
-      restFetch(cfg.supabaseUrl, cfg.supabaseKey, "event_occurrences", {
+      restFetch(SUPABASE_URL, SUPABASE_KEY, "event_occurrences", {
         select: "id,starts_at,ends_at,occurrence_status",
         event_id: `eq.${eventId}`,
         order: "starts_at.asc"
       }),
-      restFetch(cfg.supabaseUrl, cfg.supabaseKey, "event_categories", {
+      restFetch(SUPABASE_URL, SUPABASE_KEY, "event_categories", {
         select: "category_id",
         event_id: `eq.${eventId}`
       })
@@ -173,21 +157,21 @@ async function loadDetail() {
 
     const [organizerRows, venueRows, categories] = await Promise.all([
       eventRow.organizer_id
-        ? restFetch(cfg.supabaseUrl, cfg.supabaseKey, "organizers", {
+        ? restFetch(SUPABASE_URL, SUPABASE_KEY, "organizers", {
             select: "name",
             id: `eq.${eventRow.organizer_id}`,
             limit: "1"
           })
         : Promise.resolve([]),
       eventRow.venue_id
-        ? restFetch(cfg.supabaseUrl, cfg.supabaseKey, "venues", {
+        ? restFetch(SUPABASE_URL, SUPABASE_KEY, "venues", {
             select: "name,city,street,house_number,postal_code",
             id: `eq.${eventRow.venue_id}`,
             limit: "1"
           })
         : Promise.resolve([]),
       eventCats.length
-        ? restFetch(cfg.supabaseUrl, cfg.supabaseKey, "categories", {
+        ? restFetch(SUPABASE_URL, SUPABASE_KEY, "categories", {
             select: "id,slug,label",
             id: `in.(${eventCats.map((x) => x.category_id).join(",")})`
           })
