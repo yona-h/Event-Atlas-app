@@ -133,7 +133,7 @@ async function loadDetail() {
   try {
     const [eventRows, occurrences, eventCats] = await Promise.all([
       restFetch(SUPABASE_URL, SUPABASE_KEY, "events", {
-        select: "id,title,subtitle,description,event_url,ticket_url,is_free,min_price_cents,max_price_cents,currency_code,status,organizer_id,venue_id",
+        select: "id,title,subtitle,description,cover_image_url,event_url,ticket_url,is_free,min_price_cents,max_price_cents,currency_code,status,organizer_id,venue_id",
         id: `eq.${eventId}`,
         limit: "1"
       }),
@@ -190,6 +190,16 @@ async function loadDetail() {
     el.metaPrice.textContent = formatPrice(eventRow);
     el.metaStatus.textContent = eventRow.status;
     el.detailDescription.textContent = eventRow.description || "Keine Beschreibung.";
+
+    if (eventRow.cover_image_url) {
+      const img = document.createElement("img");
+      img.src = eventRow.cover_image_url;
+      img.alt = eventRow.title;
+      img.style.width = "100%";
+      img.style.height = "auto";
+      img.style.display = "block";
+      document.querySelector("#detailImage").appendChild(img);
+    }
 
     renderCategories(categories);
     renderLinks(eventRow);

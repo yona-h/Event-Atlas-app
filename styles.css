@@ -170,9 +170,21 @@ select {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 14px;
+  overflow: hidden;
   padding: 14px;
   box-shadow: 0 8px 24px rgba(25, 31, 38, 0.06);
   animation: rise 220ms ease-out;
+}
+
+.card-image-slot {
+  margin: -14px -14px 10px -14px;
+}
+
+.card-image-slot img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  display: block;
 }
 
 @keyframes rise {
@@ -199,9 +211,29 @@ select {
   font-size: 1.25rem;
 }
 
-.meta,
+.meta-venue,
+.meta-organizer,
 .desc {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
+}
+
+.meta-venue,
+.meta-organizer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+.meta-venue svg,
+.meta-organizer svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  opacity: 0.6;
 }
 
 .desc {
@@ -267,6 +299,31 @@ select {
 .occurrence-date {
   margin: 0 0 4px;
   font-weight: 700;
+}
+
+.day-group {
+  margin-bottom: 24px;
+}
+
+.day-heading {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--ink);
+  font-family: "Fraunces", serif;
+}
+
+.cat-group {
+  margin-bottom: 16px;
+}
+
+.cat-heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
 }
 
 @media (min-width: 760px) {
