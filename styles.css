@@ -303,6 +303,7 @@ select {
 
 .day-group {
   margin-bottom: 24px;
+  grid-column: 1 / -1;
 }
 
 .day-heading {
