@@ -24,33 +24,207 @@ function createOrganizerIcon() {
   return svg;
 }
 
+function createLinkIcon() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", "1.1em");
+  svg.setAttribute("height", "1.1em");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z");
+  svg.appendChild(path);
+  return svg;
+}
+
 const el = {
+  filtersPanel: document.querySelector("#filtersPanel"),
   startDateFilter: document.querySelector("#startDateFilter"),
   endDateFilter: document.querySelector("#endDateFilter"),
   cityFilter: document.querySelector("#cityFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
-  nextOnlyFilter: document.querySelector("#nextOnlyFilter"),
-  loadBtn: document.querySelector("#loadBtn"),
   resultInfo: document.querySelector("#resultInfo"),
   cards: document.querySelector("#cards"),
-  cardTemplate: document.querySelector("#cardTemplate")
+  cardTemplate: document.querySelector("#cardTemplate"),
+  addSourceForm: document.querySelector("#addSourceForm"),
+  srcName: document.querySelector("#srcName"),
+  srcRootUrl: document.querySelector("#srcRootUrl"),
+  srcEventsUrl: document.querySelector("#srcEventsUrl"),
+  srcStreet: document.querySelector("#srcStreet"),
+  srcPostalCode: document.querySelector("#srcPostalCode"),
+  srcCity: document.querySelector("#srcCity"),
+  srcNote: document.querySelector("#srcNote"),
+  addSourceInfo: document.querySelector("#addSourceInfo"),
+  reviewPanel: document.querySelector("#reviewPanel"),
+  reviewInfo: document.querySelector("#reviewInfo"),
+  reviewList: document.querySelector("#reviewList"),
+  addSourceFabBtn: document.querySelector("#addSourceFabBtn"),
+  addSourceModal: document.querySelector("#addSourceModal"),
+  addSourceModalCloseBtn: document.querySelector("#addSourceModalCloseBtn")
 };
+
+function openAddSourceModal() {
+  el.addSourceModal.hidden = false;
+}
+
+function closeAddSourceModal() {
+  el.addSourceModal.hidden = true;
+}
+
+const OWNER_KEY_STORAGE = "eventatlas_owner_key";
+
+function initOwnerKey() {
+  const params = new URLSearchParams(window.location.search);
+  const keyFromUrl = params.get("ownerKey");
+  if (keyFromUrl) {
+    localStorage.setItem(OWNER_KEY_STORAGE, keyFromUrl);
+    params.delete("ownerKey");
+    const newSearch = params.toString();
+    const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : "") + window.location.hash;
+    window.history.replaceState({}, "", newUrl);
+  }
+  return localStorage.getItem(OWNER_KEY_STORAGE) || null;
+}
+
+async function callRpc(fnName, payload) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fnName}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message = (data && data.message) || `HTTP ${res.status}`;
+    throw new Error(message);
+  }
+  return data;
+}
+
+async function handleAddSourceSubmit(evt) {
+  evt.preventDefault();
+  el.addSourceInfo.textContent = "Wird gesendet...";
+
+  try {
+    const result = await callRpc("submit_website", {
+      p_name: el.srcName.value.trim(),
+      p_root_url: el.srcRootUrl.value.trim() || null,
+      p_events_url: el.srcEventsUrl.value.trim() || null,
+      p_street: el.srcStreet.value.trim() || null,
+      p_postal_code: el.srcPostalCode.value.trim() || null,
+      p_city: el.srcCity.value.trim() || null,
+      p_note: el.srcNote.value.trim() || null,
+      p_secret: ownerKey
+    });
+
+    if (result.status === "added") {
+      el.addSourceInfo.textContent = "Direkt hinzugefuegt.";
+    } else {
+      el.addSourceInfo.textContent = "Danke! Dein Vorschlag wurde eingereicht und wird geprueft.";
+    }
+    el.addSourceForm.reset();
+    if (ownerKey) loadPendingSuggestions();
+  } catch (err) {
+    el.addSourceInfo.textContent = `Fehler: ${err.message}`;
+  }
+}
+
+function renderSuggestion(item) {
+  const card = document.createElement("article");
+  card.className = "suggestion-card";
+
+  const title = document.createElement("h4");
+  title.textContent = item.name;
+  card.appendChild(title);
+
+  const details = [
+    item.root_url ? `Website: ${item.root_url}` : null,
+    item.events_url && item.events_url !== item.root_url ? `Events: ${item.events_url}` : null,
+    item.street || item.postal_code ? `Adresse: ${item.street || ""} ${item.postal_code || ""} ${item.city || ""}`.trim() : null,
+    item.note ? `Notiz: ${item.note}` : null
+  ].filter(Boolean);
+
+  details.forEach((text) => {
+    const p = document.createElement("p");
+    p.textContent = text;
+    card.appendChild(p);
+  });
+
+  const actions = document.createElement("div");
+  actions.className = "suggestion-actions";
+
+  const approveBtn = document.createElement("button");
+  approveBtn.type = "button";
+  approveBtn.className = "btn";
+  approveBtn.textContent = "Uebernehmen";
+  approveBtn.addEventListener("click", () => reviewSuggestion(item.id, "approve"));
+
+  const rejectBtn = document.createElement("button");
+  rejectBtn.type = "button";
+  rejectBtn.className = "btn btn-reject";
+  rejectBtn.textContent = "Ablehnen";
+  rejectBtn.addEventListener("click", () => reviewSuggestion(item.id, "reject"));
+
+  actions.appendChild(approveBtn);
+  actions.appendChild(rejectBtn);
+  card.appendChild(actions);
+
+  return card;
+}
+
+async function loadPendingSuggestions() {
+  el.reviewInfo.textContent = "Lade Vorschlaege...";
+  try {
+    const items = await callRpc("list_pending_suggestions", { p_secret: ownerKey });
+    el.reviewList.innerHTML = "";
+    if (!items.length) {
+      el.reviewInfo.textContent = "Keine offenen Vorschlaege.";
+      return;
+    }
+    el.reviewInfo.textContent = `${items.length} offene Vorschlaege`;
+    items.forEach((item) => el.reviewList.appendChild(renderSuggestion(item)));
+  } catch (err) {
+    el.reviewInfo.textContent = `Fehler beim Laden: ${err.message}`;
+  }
+}
+
+async function reviewSuggestion(id, action) {
+  try {
+    await callRpc("review_suggestion", { p_id: id, p_action: action, p_secret: ownerKey });
+    loadPendingSuggestions();
+  } catch (err) {
+    el.reviewInfo.textContent = `Fehler: ${err.message}`;
+  }
+}
+
+const ownerKey = initOwnerKey();
+el.addSourceForm.addEventListener("submit", handleAddSourceSubmit);
+el.addSourceFabBtn.addEventListener("click", openAddSourceModal);
+el.addSourceModalCloseBtn.addEventListener("click", closeAddSourceModal);
+el.addSourceModal.addEventListener("click", (evt) => {
+  if (evt.target === el.addSourceModal) closeAddSourceModal();
+});
+document.addEventListener("keydown", (evt) => {
+  if (evt.key === "Escape" && !el.addSourceModal.hidden) closeAddSourceModal();
+});
+if (ownerKey) {
+  el.reviewPanel.hidden = false;
+  loadPendingSuggestions();
+}
 
 function initDateFilters() {
   const today = new Date();
-  const in30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const in3Days = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
 
   const formatDate = (d) => d.toISOString().split('T')[0];
   el.startDateFilter.value = formatDate(today);
-  el.endDateFilter.value = formatDate(in30Days);
+  el.endDateFilter.value = formatDate(in3Days);
 }
 
-function formatDate(iso) {
+function formatTime(iso) {
   const d = new Date(iso);
   return new Intl.DateTimeFormat("de-DE", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "UTC"
@@ -185,7 +359,7 @@ function renderGrouped(items, categoryMap, imageMap) {
           node.querySelector(".card-image-slot").appendChild(img);
         }
 
-        node.querySelector(".date").textContent = `${formatDate(item.starts_at)} Uhr`;
+        node.querySelector(".date").textContent = `${formatTime(item.starts_at)} Uhr`;
         node.querySelector(".price").textContent = formatPrice(item);
         node.querySelector(".title").textContent = item.title;
 
@@ -215,11 +389,6 @@ function renderGrouped(items, categoryMap, imageMap) {
           recurringChip.className = "chip chip-recurring";
           recurringChip.textContent = "Wiederkehrend";
           chips.appendChild(recurringChip);
-
-          const indexChip = document.createElement("span");
-          indexChip.className = "chip";
-          indexChip.textContent = `Termin ${item.occurrence_index} von ${item.total_occurrences}`;
-          chips.appendChild(indexChip);
         }
 
         (item.category_labels || []).forEach((label) => {
@@ -230,27 +399,29 @@ function renderGrouped(items, categoryMap, imageMap) {
         });
 
         const links = node.querySelector(".links");
-        if (item.event_url) {
-          const a = document.createElement("a");
-          a.href = item.event_url;
-          a.target = "_blank";
-          a.rel = "noreferrer";
-          a.textContent = "Eventseite";
-          links.appendChild(a);
-        }
-        const detail = document.createElement("a");
-        detail.href = `./detail.html?eventId=${encodeURIComponent(item.event_id)}`;
-        detail.textContent = "Details";
-        links.appendChild(detail);
-
         if (item.ticket_url) {
           const a = document.createElement("a");
           a.href = item.ticket_url;
           a.target = "_blank";
           a.rel = "noreferrer";
           a.textContent = "Tickets";
+          a.addEventListener("click", (evt) => evt.stopPropagation());
           links.appendChild(a);
         }
+
+        const linkIcon = node.querySelector(".card-link-icon");
+        if (item.event_url) {
+          linkIcon.href = item.event_url;
+          linkIcon.appendChild(createLinkIcon());
+          linkIcon.addEventListener("click", (evt) => evt.stopPropagation());
+        } else {
+          linkIcon.remove();
+        }
+
+        const card = node.querySelector(".card");
+        card.addEventListener("click", () => {
+          window.location.href = `./detail.html?eventId=${encodeURIComponent(item.event_id)}`;
+        });
 
         cardsContainer.appendChild(node);
       });
@@ -285,16 +456,6 @@ function fillCategoryFilter(items) {
     });
 
   if (current) el.categoryFilter.value = current;
-}
-
-function keepNextOccurrencePerEvent(items) {
-  const byEvent = new Map();
-  for (const item of items) {
-    if (!byEvent.has(item.event_id)) {
-      byEvent.set(item.event_id, item);
-    }
-  }
-  return [...byEvent.values()];
 }
 
 async function loadFeed() {
@@ -335,7 +496,7 @@ async function loadFeed() {
     ]);
 
     fillCategoryFilter(data);
-    const filtered = el.nextOnlyFilter.checked ? keepNextOccurrencePerEvent(data) : data;
+    const filtered = data;
 
     const categoryMap = new Map();
     categories.forEach(cat => {
@@ -346,17 +507,29 @@ async function loadFeed() {
     const imageMap = await loadImages(filtered.map(i => i.event_id));
 
     renderGrouped(filtered, categoryMap, imageMap);
-    el.resultInfo.textContent = `${filtered.length} Ergebnisse${el.nextOnlyFilter.checked ? " (naechster Termin je Event)" : ""}`;
+    el.resultInfo.textContent = `${filtered.length} Ergebnisse`;
   } catch (err) {
     el.resultInfo.textContent = `Fehler beim Laden: ${err.message}`;
     el.cards.innerHTML = "";
   }
 }
 
-el.loadBtn.addEventListener("click", loadFeed);
+function debounce(fn, delayMs) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delayMs);
+  };
+}
+
 el.categoryFilter.addEventListener("change", loadFeed);
-el.nextOnlyFilter.addEventListener("change", loadFeed);
 el.startDateFilter.addEventListener("change", loadFeed);
 el.endDateFilter.addEventListener("change", loadFeed);
+el.cityFilter.addEventListener("input", debounce(loadFeed, 400));
+
+if (el.filtersPanel && !window.matchMedia("(min-width: 760px)").matches) {
+  el.filtersPanel.open = false;
+}
 
 initDateFilters();
+loadFeed();

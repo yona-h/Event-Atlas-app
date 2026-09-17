@@ -13,12 +13,15 @@
     <main class="app-shell">
       <header class="hero">
         <h1>Event Atlas Münster</h1>
+        <button id="addSourceFabBtn" class="fab-add" type="button" title="Website vorschlagen" aria-haspopup="dialog">+</button>
       </header>
 
 
-      <section class="panel filters">
-        <h2>Filter</h2>
-        <div class="grid three">
+      <details id="filtersPanel" class="panel filters" open>
+        <summary>
+          <span class="filters-summary-label">Filter <span id="resultInfo" class="muted"></span></span>
+        </summary>
+        <div class="grid filter-row">
           <label>
             <span>Von</span>
             <input id="startDateFilter" type="date" />
@@ -29,31 +32,78 @@
           </label>
           <label>
             <span>Stadt</span>
-            <input id="cityFilter" placeholder="z. B. Muenster" />
+            <input id="cityFilter" placeholder="z. B. Münster" />
           </label>
-        </div>
-        <div class="grid two">
           <label>
             <span>Kategorie</span>
             <select id="categoryFilter">
               <option value="">Alle</option>
             </select>
           </label>
-          <label class="checkbox-row">
-            <input id="nextOnlyFilter" type="checkbox" />
-            <span>Nur naechsten Termin je Event</span>
-          </label>
         </div>
-        <div class="actions">
-          <button id="loadBtn" class="btn">Feed laden</button>
-          <p id="resultInfo" class="muted"></p>
-        </div>
-      </section>
+      </details>
 
-      <section class="panel">
+      <section id="feedPanel" class="panel">
         <div id="cards" class="cards"></div>
       </section>
+
     </main>
+
+    <div id="addSourceModal" class="modal-overlay" hidden>
+      <div class="modal-content panel" role="dialog" aria-modal="true" aria-labelledby="addSourceModalTitle">
+        <div class="modal-header">
+          <h2 id="addSourceModalTitle">Website vorschlagen</h2>
+          <button id="addSourceModalCloseBtn" type="button" class="modal-close" aria-label="Schliessen">&times;</button>
+        </div>
+        <p class="muted">Kennst du eine Website, auf der Veranstaltungen angekündigt werden? Trag sie hier ein.</p>
+        <form id="addSourceForm">
+          <div class="grid two">
+            <label>
+              <span>Name *</span>
+              <input id="srcName" required placeholder="z. B. Cafe Central" />
+            </label>
+            <label>
+              <span>Haupt-Website</span>
+              <input id="srcRootUrl" type="url" placeholder="https://..." />
+            </label>
+          </div>
+          <div class="grid two">
+            <label>
+              <span>Veranstaltungsseite (falls abweichend)</span>
+              <input id="srcEventsUrl" type="url" placeholder="https://.../veranstaltungen" />
+            </label>
+            <label>
+              <span>Stadt</span>
+              <input id="srcCity" placeholder="Münster" />
+            </label>
+          </div>
+          <div class="grid two">
+            <label>
+              <span>Strasse + Hausnummer</span>
+              <input id="srcStreet" placeholder="Musterstr. 1" />
+            </label>
+            <label>
+              <span>PLZ</span>
+              <input id="srcPostalCode" placeholder="48143" />
+            </label>
+          </div>
+          <label>
+            <span>Notiz (optional)</span>
+            <textarea id="srcNote" rows="2" placeholder="z. B. Warum ist die Seite relevant?"></textarea>
+          </label>
+          <div class="actions">
+            <button type="submit" class="btn">Absenden</button>
+            <p id="addSourceInfo" class="muted"></p>
+          </div>
+        </form>
+
+        <section id="reviewPanel" class="review-panel" hidden>
+          <h2>Vorschlaege verwalten</h2>
+          <p id="reviewInfo" class="muted"></p>
+          <div id="reviewList" class="grid two"></div>
+        </section>
+      </div>
+    </div>
 
     <template id="cardTemplate">
       <article class="card">
@@ -68,6 +118,7 @@
         <p class="desc"></p>
         <div class="chips"></div>
         <div class="links"></div>
+        <a class="card-link-icon" target="_blank" rel="noreferrer" aria-label="Eventseite"></a>
       </article>
     </template>
 
