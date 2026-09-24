@@ -152,6 +152,7 @@ label {
   flex-direction: column;
   gap: 6px;
   font-size: 0.92rem;
+  position: relative;
 }
 
 input,
@@ -171,6 +172,57 @@ textarea {
 
 textarea {
   resize: vertical;
+}
+
+.address-suggestions {
+  position: absolute;
+  z-index: 100;
+  width: calc(100% - 24px);
+  max-height: 200px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  box-shadow: 0 8px 24px rgba(25, 31, 38, 0.12);
+  margin-top: -1px;
+}
+
+.address-suggestions::before {
+  content: '';
+  display: block;
+  height: 8px;
+}
+
+.address-suggestion-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+  font-size: 0.92rem;
+}
+
+.address-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.address-suggestion-item:hover {
+  background: #f8f9fa;
+}
+
+.address-suggestion-item.highlighted {
+  background: #e5f0f1;
+  cursor: pointer;
+}
+
+.address-suggestion-item .suggestion-name {
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+.address-suggestion-item .suggestion-address {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
 }
 
 .suggestion-card {
