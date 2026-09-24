@@ -52,6 +52,8 @@ const el = {
   srcPostalCode: document.querySelector("#srcPostalCode"),
   srcCity: document.querySelector("#srcCity"),
   srcNote: document.querySelector("#srcNote"),
+  srcAddressSearch: document.querySelector("#srcAddressSearch"),
+  addressSuggestions: document.querySelector("#addressSuggestions"),
   addSourceInfo: document.querySelector("#addSourceInfo"),
   reviewPanel: document.querySelector("#reviewPanel"),
   reviewInfo: document.querySelector("#reviewInfo"),
@@ -198,6 +200,176 @@ async function reviewSuggestion(id, action) {
   }
 }
 
+// Nominatim Geocoding API (OpenStreetMap - Open Source)
+const NOMINATIM_BASE_URL = "https://nominatim.openstreetmap.org/search";
+
+let addressSearchTimeout = null;
+let addressSuggestions = [];
+
+function escapeNominatimQuery(query) {
+  // Escape special characters for Nominatim
+  return encodeURIComponent(query);
+}
+
+async function searchAddress(query) {
+  if (!query || query.length < 3) {
+    return [];
+  }
+
+  try {
+    const params = new URLSearchParams({
+      q: query,
+      format: "json",
+      addressdetails: "1",
+      limit: "5",
+      countrycodes: "de",
+      "accept-language": "de"
+    });
+
+    const url = `${NOMINATIM_BASE_URL}?${params.toString()}`;
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "EventAtlas/1.0 (https://github.com/yona-h/EventAtlas)"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.map(item => ({
+      display_name: item.display_name,
+      name: item.name || item.addresstype,
+      street: item.address?.road || item.address?.street || item.address?.path || "",
+      house_number: item.address?.house_number || "",
+      postal_code: item.address?.postcode || "",
+      city: item.address?.city || item.address?.town || item.address?.village || item.address?.hamlet || "",
+      full_address: item.display_name
+    }));
+  } catch (err) {
+    console.error("Address search failed:", err);
+    return [];
+  }
+}
+
+function renderAddressSuggestions(suggestions) {
+  addressSuggestions = suggestions;
+  
+  if (suggestions.length === 0) {
+    el.addressSuggestions.hidden = true;
+    return;
+  }
+
+  el.addressSuggestions.innerHTML = "";
+  suggestions.forEach((suggestion, index) => {
+    const div = document.createElement("div");
+    div.className = "address-suggestion-item";
+    div.dataset.index = index;
+
+    const nameSpan = document.createElement("div");
+    nameSpan.className = "suggestion-name";
+    nameSpan.textContent = suggestion.name || suggestion.display_name.split(",")[0];
+
+    const addressSpan = document.createElement("div");
+    addressSpan.className = "suggestion-address";
+    addressSpan.textContent = suggestion.full_address;
+
+    div.appendChild(nameSpan);
+    div.appendChild(addressSpan);
+
+    div.addEventListener("click", () => selectAddressSuggestion(suggestion));
+
+    el.addressSuggestions.appendChild(div);
+  });
+
+  el.addressSuggestions.hidden = false;
+}
+
+function selectAddressSuggestion(suggestion) {
+  // Fill the address fields
+  const streetParts = [suggestion.street, suggestion.house_number].filter(Boolean).join(" ");
+  el.srcStreet.value = streetParts || suggestion.display_name.split(",")[0];
+  el.srcPostalCode.value = suggestion.postal_code || "";
+  el.srcCity.value = suggestion.city || "";
+  el.srcAddressSearch.value = suggestion.display_name;
+  
+  // Hide suggestions
+  el.addressSuggestions.hidden = true;
+  addressSuggestions = [];
+}
+
+async function handleAddressSearchInput() {
+  clearTimeout(addressSearchTimeout);
+  
+  const query = el.srcAddressSearch.value.trim();
+  
+  if (query.length < 3) {
+    el.addressSuggestions.hidden = true;
+    return;
+  }
+
+  addressSearchTimeout = setTimeout(async () => {
+    const suggestions = await searchAddress(query);
+    renderAddressSuggestions(suggestions);
+  }, 300);
+}
+
+function handleAddressSearchFocus() {
+  const query = el.srcAddressSearch.value.trim();
+  if (query.length >= 3 && addressSuggestions.length > 0) {
+    el.addressSuggestions.hidden = false;
+  }
+}
+
+function handleAddressSearchBlur() {
+  // Use setTimeout to allow click event to fire first
+  setTimeout(() => {
+    el.addressSuggestions.hidden = true;
+  }, 200);
+}
+
+function handleAddressSearchKeydown(evt) {
+  const suggestions = el.addressSuggestions.querySelectorAll(".address-suggestion-item");
+  const currentIndex = Array.from(suggestions).findIndex(s => s.classList.contains("highlighted"));
+  
+  switch (evt.key) {
+    case "ArrowDown":
+      evt.preventDefault();
+      if (suggestions.length > 0) {
+        const nextIndex = (currentIndex + 1) % suggestions.length;
+        suggestions.forEach(s => s.classList.remove("highlighted"));
+        suggestions[nextIndex].classList.add("highlighted");
+        suggestions[nextIndex].scrollIntoView({ block: "nearest" });
+      }
+      break;
+    case "ArrowUp":
+      evt.preventDefault();
+      if (suggestions.length > 0) {
+        const prevIndex = currentIndex > 0 ? currentIndex - 1 : suggestions.length - 1;
+        suggestions.forEach(s => s.classList.remove("highlighted"));
+        suggestions[prevIndex].classList.add("highlighted");
+        suggestions[prevIndex].scrollIntoView({ block: "nearest" });
+      }
+      break;
+    case "Enter":
+      evt.preventDefault();
+      if (!el.addressSuggestions.hidden) {
+        const highlighted = el.addressSuggestions.querySelector(".address-suggestion-item.highlighted");
+        if (highlighted) {
+          const index = parseInt(highlighted.dataset.index);
+          selectAddressSuggestion(addressSuggestions[index]);
+        } else if (suggestions.length > 0) {
+          selectAddressSuggestion(addressSuggestions[0]);
+        }
+      }
+      break;
+    case "Escape":
+      el.addressSuggestions.hidden = true;
+      break;
+  }
+}
+
 const ownerKey = initOwnerKey();
 el.addSourceForm.addEventListener("submit", handleAddSourceSubmit);
 el.addSourceFabBtn.addEventListener("click", openAddSourceModal);
@@ -212,6 +384,12 @@ if (ownerKey) {
   el.reviewPanel.hidden = false;
   loadPendingSuggestions();
 }
+
+// Initialize address search
+el.srcAddressSearch.addEventListener("input", handleAddressSearchInput);
+el.srcAddressSearch.addEventListener("focus", handleAddressSearchFocus);
+el.srcAddressSearch.addEventListener("blur", handleAddressSearchBlur);
+el.srcAddressSearch.addEventListener("keydown", handleAddressSearchKeydown);
 
 function initDateFilters() {
   const today = new Date();
